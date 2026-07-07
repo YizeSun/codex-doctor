@@ -1,0 +1,15 @@
+commit下，push吧
+
+---
+
+Why is the repository wrapped inside a top-level codex-doctor/ directory instead of having the skill files at the repository root?
+
+---
+
+Yes, let’s flatten it.
+
+The repository itself represents a single installable Skill, so the repository root should also be the Skill root.
+
+The extra codex-doctor/ directory is only useful when a repository contains multiple skills. Since this repository is intentionally a single-skill project, the additional nesting adds complexity without providing any architectural benefit.
+
+Please move SKILL.md, README.md, scripts/, agents/, and any other skill assets to the repository root, preserve Git history where possible, update any relative paths if needed, and submit the change as a follow-up commit.

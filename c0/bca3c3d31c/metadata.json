@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.8.1",
+  "checkpoint_id": "c0bca3c3d31c",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "scripts/codex-doctor.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/c0/bca3c3d31c/0/metadata.json",
+      "transcript": "/c0/bca3c3d31c/0/full.jsonl",
+      "compact_transcript": "/c0/bca3c3d31c/0/transcript.jsonl",
+      "content_hash": "/c0/bca3c3d31c/0/content_hash.txt",
+      "prompt": "/c0/bca3c3d31c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 19147,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 939392,
+    "output_tokens": 4391,
+    "api_call_count": 21
+  }
+}
