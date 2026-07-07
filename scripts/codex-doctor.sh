@@ -156,7 +156,8 @@ if [ -d "$CODEX_SESSIONS" ]; then
   find "$CODEX_SESSIONS" -type f -name 'rollout-*.jsonl' -exec du -sk {} + 2>/dev/null \
     | sort -nr \
     | head -20 \
-    | awk '{ kb=$1; $1=""; sub(/^ /,""); printf "  %12s  %s\n", kb " KB", $0 }'
+    | awk '{ kb=$1; $1=""; sub(/^ /,""); printf "  %12s  %s\n", kb " KB", $0 }' \
+    || true
 else
   printf '  Not found: %s\n' "$CODEX_SESSIONS"
 fi
