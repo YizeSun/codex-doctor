@@ -1,11 +1,3 @@
-commit下，push吧
-
----
-
-Why is the repository wrapped inside a top-level codex-doctor/ directory instead of having the skill files at the repository root?
-
----
-
 Yes, let’s flatten it.
 
 The repository itself represents a single installable Skill, so the repository root should also be the Skill root.
