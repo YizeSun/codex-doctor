@@ -1,18 +1,3 @@
-Please polish the Installation section.
-
-The current installation instructions are technically correct, but I'd like to improve the onboarding experience for first-time users.
-
-Suggestions:
-
-- Explain that the repository is cloned directly into ~/.codex/skills/codex-doctor.
-- Mention that the user may need to restart Codex CLI (or start a new session) before the skill is available.
-- Add a short "Verify Installation" subsection explaining how users can confirm the skill has been installed correctly.
-- Keep the installation concise. It should be possible to understand the whole process in less than one minute.
-
-The goal is to make a first-time user feel confident that the skill has been installed successfully.
-
----
-
 Please rewrite the "Real Example" section.
 
 I don't want it to read like another feature list or diagnostic report.
