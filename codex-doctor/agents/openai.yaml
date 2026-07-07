@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Doctor"
+  short_description: "Diagnose and clean Codex CLI disk usage"
+  default_prompt: "Use $codex-doctor to diagnose Codex CLI disk usage and recommend safe cleanup commands."
