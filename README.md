@@ -89,6 +89,20 @@ cd ~/.codex/skills/codex-doctor
 git pull
 ```
 
+## Platform Support
+
+Codex Doctor was originally developed and tested on macOS.
+
+The primary focus is maintaining the local Codex runtime under macOS, where
+Codex is commonly used alongside developer tooling such as Xcode.
+
+Most Codex runtime checks are platform-independent.
+
+Some supporting diagnostics, for example developer cache inspection, are
+currently macOS-specific.
+
+Support for additional operating systems may be added in the future.
+
 ## Usage
 
 Run a read-only diagnosis:
