@@ -46,14 +46,22 @@ The default mode is read-only. Cleanup only happens when requested.
 
 ## Installation
 
-Install manually from GitHub into your Codex skills directory:
+Clone this repository directly into your Codex skills directory:
 
 ```bash
 mkdir -p ~/.codex/skills
 git clone https://github.com/YizeSun/codex-doctor.git ~/.codex/skills/codex-doctor
 ```
 
-Verify the Skill files are installed:
+This installs the repository as a single Skill at
+`~/.codex/skills/codex-doctor`.
+
+After installing, restart Codex CLI or start a new Codex session so the Skill
+can be discovered.
+
+### Verify Installation
+
+Confirm the Skill root contains the expected files:
 
 ```bash
 ls ~/.codex/skills/codex-doctor
@@ -66,6 +74,12 @@ SKILL.md
 README.md
 agents/
 scripts/
+```
+
+You can also run a read-only diagnosis directly:
+
+```bash
+~/.codex/skills/codex-doctor/scripts/codex-doctor.sh --help
 ```
 
 To update later:
