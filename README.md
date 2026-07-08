@@ -217,3 +217,7 @@ not the main scope of the project.
 - Threshold-based recommendations for unusually large session or log files.
 - Safer SQLite maintenance options where supported.
 - More Codex-specific runtime checks as the CLI evolves.
+
+## License
+
+MIT License. See [LICENSE](LICENSE).
