@@ -1,0 +1,19 @@
+add this in readme file section installation:## Platform Support
+
+Codex Doctor was originally developed and tested on macOS.
+
+The primary focus is maintaining the local Codex runtime under macOS, where Codex is commonly used alongside developer tooling such as Xcode.
+
+Most Codex runtime checks are platform-independent.
+
+Some supporting diagnostics (for example, developer cache inspection) are currently macOS-specific.
+
+Support for additional operating systems may be added in the future.
+
+---
+
+add a MIT license[Image #1] liek this but with copyright YizeSun
+
+---
+
+add a MIT license like this but with copyright YizeSun
