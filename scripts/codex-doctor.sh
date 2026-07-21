@@ -14,9 +14,11 @@ CODEX_SESSIONS="$CODEX_HOME/sessions"
 CODEX_CACHE="$HOME/Library/Caches/com.openai.codex"
 XCODE_DERIVED_DATA="$HOME/Library/Developer/Xcode/DerivedData"
 CORE_SIMULATOR="$HOME/Library/Developer/CoreSimulator"
+CODE_SIGN_CLONE_ROOT="$(doctor_detect_codex_code_sign_clone_root || true)"
 
 ASSUME_YES=0
 PRUNE_CODEX_SESSIONS_DAYS=""
+PRUNE_CODE_SIGN_CLONES_DAYS=""
 CLEAR_CODEX_CACHE=0
 CLEAR_XCODE_DERIVED_DATA=0
 ERASE_SIMULATORS=0
@@ -34,6 +36,7 @@ Diagnosis is read-only by default.
 
 Cleanup flags:
   --prune-codex-sessions-days N   Remove ~/.codex/sessions rollout-*.jsonl files older than N days.
+  --prune-code-sign-clones-days N Remove verified, inactive Codex macOS code-sign clones older than N days.
   --clear-codex-cache             Empty ~/Library/Caches/com.openai.codex.
   --clear-xcode-derived-data      Empty ~/Library/Developer/Xcode/DerivedData.
   --erase-simulators              Run xcrun simctl erase all after shutting down simulators.
@@ -56,6 +59,14 @@ while [ "$#" -gt 0 ]; do
         exit 2
       fi
       PRUNE_CODEX_SESSIONS_DAYS="$1"
+      ;;
+    --prune-code-sign-clones-days)
+      shift
+      if [ "$#" -eq 0 ] || ! printf '%s' "$1" | grep -Eq '^[0-9]+$'; then
+        printf 'Expected a non-negative integer after --prune-code-sign-clones-days.\n' >&2
+        exit 2
+      fi
+      PRUNE_CODE_SIGN_CLONES_DAYS="$1"
       ;;
     --clear-codex-cache)
       CLEAR_CODEX_CACHE=1
@@ -140,6 +151,41 @@ if [ -z "$HOMEBREW_CACHE" ]; then
   HOMEBREW_CACHE="$HOME/Library/Caches/Homebrew"
 fi
 
+CODE_SIGN_CLONE_PATHS=()
+CODE_SIGN_CLONE_VERSIONS=()
+CODE_SIGN_CLONE_BUILDS=()
+CODE_SIGN_CLONE_AGES=()
+CODE_SIGN_CLONE_STATUSES=()
+CODE_SIGN_CLONE_SIZES=()
+CODE_SIGN_CLONE_TOTAL_KB=0
+CODE_SIGN_CLONE_INVALID_COUNT=0
+
+if [ -n "$CODE_SIGN_CLONE_ROOT" ] && [ -d "$CODE_SIGN_CLONE_ROOT" ]; then
+  shopt -s nullglob
+  raw_code_sign_clones=("$CODE_SIGN_CLONE_ROOT"/code_sign_clone.*)
+  shopt -u nullglob
+  for clone_path in "${raw_code_sign_clones[@]}"; do
+    if ! clone_bundle="$(doctor_codex_clone_bundle "$clone_path")"; then
+      CODE_SIGN_CLONE_INVALID_COUNT=$((CODE_SIGN_CLONE_INVALID_COUNT + 1))
+      continue
+    fi
+    clone_plist="$clone_bundle/Contents/Info.plist"
+    clone_version="$(doctor_plist_value "$clone_plist" CFBundleShortVersionString || printf 'unknown')"
+    clone_build="$(doctor_plist_value "$clone_plist" CFBundleVersion || printf 'unknown')"
+    clone_age="$(doctor_path_age_days "$clone_path" || printf '0')"
+    clone_status="$(doctor_codex_clone_status "$clone_path")"
+    clone_kb="$(doctor_path_kb "$clone_path")"
+
+    CODE_SIGN_CLONE_PATHS+=("$clone_path")
+    CODE_SIGN_CLONE_VERSIONS+=("$clone_version")
+    CODE_SIGN_CLONE_BUILDS+=("$clone_build")
+    CODE_SIGN_CLONE_AGES+=("$clone_age")
+    CODE_SIGN_CLONE_STATUSES+=("$clone_status")
+    CODE_SIGN_CLONE_SIZES+=("$clone_kb")
+    CODE_SIGN_CLONE_TOTAL_KB=$((CODE_SIGN_CLONE_TOTAL_KB + clone_kb))
+  done
+fi
+
 printf 'Codex Doctor Report\n'
 printf 'Generated: %s\n\n' "$(date '+%Y-%m-%d %H:%M:%S %Z')"
 
@@ -171,6 +217,31 @@ doctor_print_size_line 'pnpm store/cache' "$PNPM_CACHE"
 doctor_print_size_line 'yarn cache' "$YARN_CACHE"
 doctor_print_size_line 'Homebrew cache' "$HOMEBREW_CACHE"
 
+printf '\nCodex macOS Code-Sign Clones\n'
+if [ -z "$CODE_SIGN_CLONE_ROOT" ]; then
+  printf '  Not available on this platform.\n'
+elif [ "${#CODE_SIGN_CLONE_PATHS[@]}" -eq 0 ]; then
+  printf '  No verified Codex code-sign clones found at: %s\n' "$CODE_SIGN_CLONE_ROOT"
+else
+  printf '  Chromium creates these APFS copy-on-write app clones to keep a running\n'
+  printf '  Codex instance code-signature-valid while an update replaces the app.\n'
+  printf '  Root: %s\n' "$CODE_SIGN_CLONE_ROOT"
+  printf '  Verified total (logical/accounted): %s\n' "$(doctor_human_kb "$CODE_SIGN_CLONE_TOTAL_KB")"
+  printf '  %-24s %-18s %-8s %-10s %12s\n' 'Clone' 'Version (build)' 'Age' 'Status' 'Size'
+  for ((i = 0; i < ${#CODE_SIGN_CLONE_PATHS[@]}; i++)); do
+    printf '  %-24s %-18s %5sd   %-10s %12s\n' \
+      "${CODE_SIGN_CLONE_PATHS[$i]##*/}" \
+      "${CODE_SIGN_CLONE_VERSIONS[$i]} (${CODE_SIGN_CLONE_BUILDS[$i]})" \
+      "${CODE_SIGN_CLONE_AGES[$i]}" \
+      "${CODE_SIGN_CLONE_STATUSES[$i]}" \
+      "$(doctor_human_kb "${CODE_SIGN_CLONE_SIZES[$i]}")"
+  done
+  printf '  Note: APFS clone block sharing means actual free-space gain may be lower.\n'
+fi
+if [ "$CODE_SIGN_CLONE_INVALID_COUNT" -gt 0 ]; then
+  printf '  Ignored %s unverified artifact(s); they are never cleanup candidates.\n' "$CODE_SIGN_CLONE_INVALID_COUNT"
+fi
+
 cleanup_requested=0
 selected_reclaimable_kb=0
 recommended_reclaimable_kb=0
@@ -179,6 +250,7 @@ risky_plan_items=()
 safe_recommendations=()
 risky_recommendations=()
 prune_files=()
+prune_code_sign_clones=()
 
 recommended_prune_files=()
 if [ -d "$CODEX_SESSIONS" ]; then
@@ -190,6 +262,18 @@ if [ "${#recommended_prune_files[@]}" -gt 0 ]; then
   kb="$(doctor_paths_kb "${recommended_prune_files[@]}")"
   recommended_reclaimable_kb=$((recommended_reclaimable_kb + kb))
   safe_recommendations+=("Prune ${#recommended_prune_files[@]} Codex rollout files older than 30 days ($(doctor_human_kb "$kb")): ./scripts/codex-doctor.sh --prune-codex-sessions-days 30")
+fi
+
+recommended_code_sign_clones=()
+for ((i = 0; i < ${#CODE_SIGN_CLONE_PATHS[@]}; i++)); do
+  if [ "${CODE_SIGN_CLONE_STATUSES[$i]}" = "inactive" ] && [ "${CODE_SIGN_CLONE_AGES[$i]}" -gt 7 ]; then
+    recommended_code_sign_clones+=("${CODE_SIGN_CLONE_PATHS[$i]}")
+  fi
+done
+if [ "${#recommended_code_sign_clones[@]}" -gt 0 ]; then
+  kb="$(doctor_paths_kb "${recommended_code_sign_clones[@]}")"
+  recommended_reclaimable_kb=$((recommended_reclaimable_kb + kb))
+  safe_recommendations+=("Prune ${#recommended_code_sign_clones[@]} verified inactive Codex code-sign clones older than 7 days ($(doctor_human_kb "$kb") logical/accounted): ./scripts/codex-doctor.sh --prune-code-sign-clones-days 7")
 fi
 
 for recommended_path in "$CODEX_CACHE" "$XCODE_DERIVED_DATA" "$PIP_CACHE" "$NPM_CACHE" "$PNPM_CACHE" "$YARN_CACHE" "$HOMEBREW_CACHE"; do
@@ -216,6 +300,35 @@ if [ -n "$PRUNE_CODEX_SESSIONS_DAYS" ]; then
     plan_items+=("Prune ${#prune_files[@]} Codex rollout files older than ${PRUNE_CODEX_SESSIONS_DAYS} days ($(doctor_human_kb "$prune_kb")).")
   else
     plan_items+=("No Codex rollout files older than ${PRUNE_CODEX_SESSIONS_DAYS} days were found.")
+  fi
+fi
+
+if [ -n "$PRUNE_CODE_SIGN_CLONES_DAYS" ]; then
+  cleanup_requested=1
+  skipped_in_use=0
+  skipped_recent=0
+  skipped_unknown=0
+  for ((i = 0; i < ${#CODE_SIGN_CLONE_PATHS[@]}; i++)); do
+    if [ "${CODE_SIGN_CLONE_STATUSES[$i]}" = "in use" ]; then
+      skipped_in_use=$((skipped_in_use + 1))
+    elif [ "${CODE_SIGN_CLONE_STATUSES[$i]}" != "inactive" ]; then
+      skipped_unknown=$((skipped_unknown + 1))
+    elif [ "${CODE_SIGN_CLONE_AGES[$i]}" -le "$PRUNE_CODE_SIGN_CLONES_DAYS" ]; then
+      skipped_recent=$((skipped_recent + 1))
+    else
+      prune_code_sign_clones+=("${CODE_SIGN_CLONE_PATHS[$i]}")
+    fi
+  done
+
+  if [ "${#prune_code_sign_clones[@]}" -gt 0 ]; then
+    clone_prune_kb="$(doctor_paths_kb "${prune_code_sign_clones[@]}")"
+    selected_reclaimable_kb=$((selected_reclaimable_kb + clone_prune_kb))
+    plan_items+=("Remove ${#prune_code_sign_clones[@]} verified inactive Codex code-sign clones older than ${PRUNE_CODE_SIGN_CLONES_DAYS} days ($(doctor_human_kb "$clone_prune_kb") logical/accounted; physical APFS gain may be lower).")
+  else
+    plan_items+=("No verified inactive Codex code-sign clones older than ${PRUNE_CODE_SIGN_CLONES_DAYS} days were found.")
+  fi
+  if [ "$skipped_in_use" -gt 0 ] || [ "$skipped_recent" -gt 0 ] || [ "$skipped_unknown" -gt 0 ]; then
+    plan_items+=("Skip code-sign clones: $skipped_in_use in use, $skipped_recent too recent, $skipped_unknown with unknown status.")
   fi
 fi
 
@@ -316,6 +429,7 @@ fi
 
 printf '\nRecommended next commands\n'
 printf '  ./scripts/codex-doctor.sh --prune-codex-sessions-days 30\n'
+printf '  ./scripts/codex-doctor.sh --prune-code-sign-clones-days 7\n'
 printf '  ./scripts/codex-doctor.sh --clear-codex-cache\n'
 printf '  ./scripts/codex-doctor.sh --clear-xcode-derived-data\n'
 printf '  ./scripts/codex-doctor.sh --erase-simulators\n'
@@ -329,6 +443,12 @@ if [ "${#prune_files[@]}" -gt 0 ]; then
   printf '  Files to remove:\n'
   for file in "${prune_files[@]}"; do
     printf '    %s\n' "$file"
+  done
+fi
+if [ "${#prune_code_sign_clones[@]}" -gt 0 ]; then
+  printf '  Verified inactive code-sign clone directories to remove:\n'
+  for clone_path in "${prune_code_sign_clones[@]}"; do
+    printf '    %s\n' "$clone_path"
   done
 fi
 for item in "${plan_items[@]}"; do
@@ -345,6 +465,35 @@ doctor_confirm_or_exit "$ASSUME_YES"
 if [ "${#prune_files[@]}" -gt 0 ]; then
   for file in "${prune_files[@]}"; do
     doctor_remove_file "$file"
+  done
+fi
+
+if [ "${#prune_code_sign_clones[@]}" -gt 0 ]; then
+  for clone_path in "${prune_code_sign_clones[@]}"; do
+    if ! doctor_is_valid_codex_code_sign_clone "$clone_path"; then
+      printf 'Skipping clone that failed revalidation: %s\n' "$clone_path" >&2
+      continue
+    fi
+    clone_age="$(doctor_path_age_days "$clone_path" || printf '0')"
+    if [ "$clone_age" -le "$PRUNE_CODE_SIGN_CLONES_DAYS" ]; then
+      printf 'Skipping clone that is no longer old enough: %s\n' "$clone_path" >&2
+      continue
+    fi
+    if ! doctor_command_exists lsof; then
+      printf 'Skipping clone because lsof is unavailable: %s\n' "$clone_path" >&2
+      continue
+    fi
+    if doctor_codex_clone_in_use "$clone_path"; then
+      printf 'Skipping clone that became active: %s\n' "$clone_path" >&2
+      continue
+    else
+      clone_use_status=$?
+      if [ "$clone_use_status" -ne 1 ]; then
+        printf 'Skipping clone whose process status cannot be verified: %s\n' "$clone_path" >&2
+        continue
+      fi
+    fi
+    doctor_remove_directory "$clone_path"
   done
 fi
 

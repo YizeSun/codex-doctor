@@ -13,6 +13,12 @@ Codex sessions, rollout logs, SQLite databases, caches, and temporary runtime
 artifacts are useful while work is happening. They make sessions recoverable,
 preserve context, speed up repeated operations, and help the CLI function.
 
+On macOS, the Chromium runtime embedded in Codex can also create temporary
+copy-on-write application bundles under the user's Darwin temporary `X`
+directory. These code-sign clones keep a running app's signature valid while
+an update replaces the installed application. Normally a helper removes them
+after exit, but interrupted or failed cleanup can leave old clones behind.
+
 Over time, those artifacts accumulate silently. A developer may eventually find
 gigabytes of data under `~/.codex` without a clear answer to basic questions:
 
@@ -120,12 +126,49 @@ Common follow-up commands:
 # Clear the Codex cache
 ~/.codex/skills/codex-doctor/scripts/codex-doctor.sh --clear-codex-cache
 
+# Remove only verified, inactive Codex code-sign clones older than seven days
+~/.codex/skills/codex-doctor/scripts/codex-doctor.sh --prune-code-sign-clones-days 7
+
 # Clean Xcode DerivedData when local iOS/macOS builds are part of the workflow
 ~/.codex/skills/codex-doctor/scripts/codex-doctor.sh --clear-xcode-derived-data
 ```
 
 Cleanup commands print an exact plan and require confirmation unless `--yes` is
 passed.
+
+## macOS Code-Sign Clones
+
+Codex's embedded Chromium runtime includes `CodeSignCloneManager`. At app
+startup it can APFS-clone the application bundle into a path similar to:
+
+```text
+/private/var/folders/.../X/com.openai.codex.code_sign_clone/code_sign_clone.XXXXXX/Codex.app.bundle
+```
+
+The clone preserves a reachable, code-signature-valid bundle while an updater
+replaces the installed app. Chromium intends a cleanup helper to remove the
+clone after the corresponding process exits. Abnormal termination or helper
+failure can leave historical copies behind.
+
+Codex Doctor treats these directories conservatively. A clone is eligible only
+when all of the following are true:
+
+- it is a direct `code_sign_clone.XXXXXX` child of the current user's Darwin
+  code-sign-clone directory;
+- it is owned by the current user and is not a symlink;
+- it contains exactly one `.app.bundle` with Bundle ID `com.openai.codex` and
+  its declared main executable;
+- it is older than the requested age threshold;
+- `lsof` finds neither an open file inside the clone nor a process using the
+  hard-linked main executable.
+
+The tool validates those conditions during diagnosis and again immediately
+before removal. Active, recent, malformed, symlinked, and unverifiable entries
+are skipped. The reported size is logical/accounted `du` usage; because these
+are APFS copy-on-write clones, the increase in free disk space can be lower.
+
+The underlying behavior is documented in Chromium's
+[`CodeSignCloneManager`](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/chrome/browser/mac/code_sign_clone_manager.h).
 
 ## Real Example
 
@@ -203,6 +246,8 @@ Codex Doctor is conservative by default.
 - Destructive actions print an exact cleanup plan first.
 - Confirmation is required unless `--yes` is passed.
 - Cleanup paths are allowlisted.
+- Stale code-sign clone cleanup requires structural validation, an age
+  threshold, and an inactive-process check with `lsof`.
 - Source code, project folders, `Documents`, `Desktop`, and `Downloads` are not
   cleanup targets.
 
