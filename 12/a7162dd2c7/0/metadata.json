@@ -1,0 +1,58 @@
+{
+  "cli_version": "0.8.1",
+  "checkpoint_id": "12a7162dd2c7",
+  "session_id": "019f3eb8-f0af-7ce1-b22c-7941f47753d7",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-21T13:06:21.123752Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "scripts/codex-doctor.sh",
+    "README.md"
+  ],
+  "agent": "Codex",
+  "model": "gpt-5.5",
+  "turn_id": "2f6b7406f312",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 325723,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 8017920,
+    "output_tokens": 34197,
+    "api_call_count": 137
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-21T13:06:21.090845Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 3,
+    "total_committed": 0,
+    "total_lines_changed": 6,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 438,
+      "user_lines_removed": 3,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 52,
+        "README.md": 45,
+        "SKILL.md": 5,
+        "agents/openai.yaml": 2,
+        "scripts/codex-doctor.sh": 149,
+        "scripts/doctor-common.sh": 182
+      },
+      "user_removed_per_file": {
+        "SKILL.md": 1,
+        "agents/openai.yaml": 2
+      }
+    }
+  ]
+}
